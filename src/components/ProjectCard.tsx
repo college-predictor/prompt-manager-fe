@@ -3,27 +3,28 @@
 
 import React from "react";
 import Image from "next/image";
-
-type Provider = "OpenAI" | "Anthropic" | "Google AI";
+import { Model } from "@/lib/api";
 
 interface ProjectCardProps {
   title: string;
   description: string;
   promptCount?: number;
+  models?: Model[];
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
-const providers: Provider[] = ["OpenAI", "Anthropic", "Google AI"];
-
-const getProviderIcon = (provider: Provider) => {
-  switch (provider) {
-    case "OpenAI":
+const getProviderIcon = (providerName: string) => {
+  switch (providerName.toLowerCase()) {
+    case "openai":
       return "/openai-icon.svg";
-    case "Anthropic":
+    case "anthropic":
       return "/anthropic-icon.svg";
-    case "Google AI":
+    case "google ai":
+    case "google":
       return "/gemini-icon.svg";
+    default:
+      return "/openai-icon.svg"; // fallback
   }
 };
 
@@ -31,9 +32,20 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
   title,
   description,
   promptCount = 0,
+  models = [],
   onEdit = () => {},
   onDelete = () => {},
 }) => {
+  // Get unique providers from models
+  const uniqueProviders = models.reduce((acc, model) => {
+    if (!acc.find(p => p.name === model.provider_name)) {
+      acc.push({
+        name: model.provider_name,
+        icon: getProviderIcon(model.provider_name)
+      });
+    }
+    return acc;
+  }, [] as { name: string; icon: string }[]);
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
@@ -50,20 +62,26 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         </div>
       </div>
 
-      {/* Provider Icons */}
+      {/* Models Info */}
       <div className="mb-4">
-        <div className="flex justify-around items-center">
-          {providers.map((provider) => (
-            <div key={provider} className="flex items-center">
-              <Image
-                src={getProviderIcon(provider)!}
-                alt={provider}
-                width={20}
-                height={20}
-              />
-            </div>
-          ))}
+        <div className="text-xs text-gray-500 mb-2">
+          {models.length} model{models.length !== 1 ? 's' : ''} configured
         </div>
+        {uniqueProviders.length > 0 && (
+          <div className="flex justify-start items-center space-x-3">
+            {uniqueProviders.map((provider) => (
+              <div key={provider.name} className="flex items-center space-x-1">
+                <Image
+                  src={provider.icon}
+                  alt={provider.name}
+                  width={16}
+                  height={16}
+                />
+                <span className="text-xs text-gray-600">{provider.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Divider */}
