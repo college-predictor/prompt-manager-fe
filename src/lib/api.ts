@@ -1,5 +1,5 @@
-// src/lib/api.ts
 import axios, { AxiosResponse } from 'axios';
+import { getCookie } from './cookies';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -11,6 +11,71 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Add request interceptor to include session token
+apiClient.interceptors.request.use((config) => {
+  // Add session token to headers if available
+  const sessionToken = getCookie('session_token');
+  if (sessionToken) {
+    config.headers['X-Session-Token'] = sessionToken;
+  }
+
+  // Log the request for debugging
+  console.log('API Request:', {
+    method: config.method?.toUpperCase(),
+    url: config.url,
+    baseURL: config.baseURL,
+    fullURL: `${config.baseURL}${config.url}`,
+    hasSessionToken: !!sessionToken,
+    data: config.data,
+  });
+  return config;
+});
+
+// Add response interceptor to handle redirects and errors
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log('API Response:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data,
+    });
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      message: error.message,
+      data: error.response?.data,
+    });
+
+    // If we get redirected to login or 401/403, clear session and redirect
+    if (
+      error.response?.status === 401 ||
+      error.response?.status === 403 ||
+      (error.response?.status === 404 &&
+        error.request?.responseURL?.includes('/accounts/login'))
+    ) {
+      console.error('Authentication required - session expired');
+
+      // Clear session cookies
+      if (typeof window !== 'undefined') {
+        document.cookie.split(';').forEach((c) => {
+          const eqPos = c.indexOf('=');
+          const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+          document.cookie =
+            name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+        });
+
+        // Redirect to login
+        window.location.href = '/login';
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 // Types
 export interface LoginPayload {

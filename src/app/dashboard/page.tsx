@@ -14,24 +14,46 @@ export default function DashboardPage() {
   const { projects, loading: projectsLoading, error: projectsError, fetchProjects, deleteProject } = useProjects();
   const { fetchModels } = useModels();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    console.log('Dashboard: Auth state changed', {
+      authLoading,
+      hasUser: !!user,
+      userEmail: user?.email,
+      hasInitialized
+    });
+
     if (!authLoading && !user) {
+      console.log('Dashboard: No user found, redirecting to login');
       router.push('/login');
       return;
     }
 
-    if (user) {
-      fetchProjects();
-      fetchModels();
+    // Only initialize once when user is authenticated and we haven't initialized yet
+    if (user && !hasInitialized && !authLoading) {
+      console.log('Dashboard: Initializing data fetch');
+      setHasInitialized(true);
+
+      // Add a small delay to ensure session is fully established
+      setTimeout(() => {
+        console.log('Dashboard: Executing API calls');
+        fetchProjects();
+        fetchModels();
+      }, 1000); // Increased delay
     }
-  }, [user, authLoading, router, fetchProjects, fetchModels]);
+  }, [user, authLoading, router, hasInitialized]); // Removed fetchProjects and fetchModels from dependencies
 
   const handleDeleteProject = async (projectId: number) => {
     if (window.confirm('Are you sure you want to delete this project?')) {
       await deleteProject(projectId);
     }
+  };
+
+  const handleRetryFetch = () => {
+    console.log('Dashboard: Retrying data fetch');
+    setHasInitialized(false); // Reset initialization to allow retry
   };
 
   if (authLoading) {
@@ -75,9 +97,17 @@ export default function DashboardPage() {
               <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <h3 className="text-sm font-medium text-red-800">Error loading projects</h3>
                 <div className="mt-2 text-sm text-red-700">{projectsError}</div>
+                <div className="mt-4">
+                  <button
+                    onClick={handleRetryFetch}
+                    className="text-sm bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded"
+                  >
+                    Retry
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -94,7 +124,7 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-        ) : projects.length === 0 ? (
+        ) : projects.length === 0 && !projectsError ? (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />

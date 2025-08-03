@@ -1,4 +1,3 @@
-// src/contexts/AppContext.tsx
 "use client";
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { Project, Model } from '@/lib/api';
