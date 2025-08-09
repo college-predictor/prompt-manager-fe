@@ -1,51 +1,43 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, signInWithGoogle } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import axios from "axios";
+import { useAuth } from "@/contexts/AuthContext";
+import { signInWithGoogle } from "@/lib/firebase";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const token = await user.getIdToken();
-        try {
-          const response = await axios.post(
-            // `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-            `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-            {
-              auth_type: 0,
-              token: token,
-            },
-            { withCredentials: true }
-          );
-
-          if (response.data.result === "ok") {
-            router.push("/dashboard");
-          }
-        } catch (err) {
-          console.error("Backend login error", err);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
+    if (!authLoading && user) {
+      router.push("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   const handleLogin = async () => {
     setLoading(true);
     try {
       await signInWithGoogle();
+      // The AuthContext will handle the backend authentication
     } catch (err) {
       console.error("Firebase login failed", err);
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return null; // Will redirect to dashboard
+  }
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -61,7 +53,7 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Prompt Manager</h1>
             
             <p className="text-gray-600 text-sm leading-relaxed">
-            Login to access your travelwise account Login to access your travelwise account Login to access your travelwise account
+            Manage your AI prompts and projects with multiple AI providers in one place.
             </p>
         </div>
         </div>
@@ -71,8 +63,8 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-sm lg:w-96">
         <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Login</h2>
-            <p className="text-gray-600 mb-8">Login to access your travelwise account</p>
-            
+            <p className="text-gray-600 mb-8">Sign in to access your prompt management dashboard</p>
+
             <div>
             <button
                 type="button"
